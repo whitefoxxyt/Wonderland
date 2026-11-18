@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wonderland"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []          # vide : le moteur n'a besoin de rien
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+server = ["fastapi", "uvicorn[standard]", "pydantic"]   # utile en phase 3
+
+[tool.setuptools.packages.find]
+where = ["backend"]        # « mes packages sont dans backend/ »
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
