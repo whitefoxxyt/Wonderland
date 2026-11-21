@@ -1,5 +1,4 @@
 import pytest
-
 from wonderland.engine.grid import Grid, Tile
 
 

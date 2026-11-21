@@ -1,7 +1,6 @@
-from enum import Enum
-
 import pytest
-from backend.wonderland.engine.actions import Action, Direction
+from wonderland.engine.actions import Action, Direction
+
 
 # --- TEST DIRECTION ---
 @pytest.mark.parametrize(
@@ -49,6 +48,17 @@ def test_action_correspondance_noms() -> None:
 )
 def test_action_direction(action: Action, expected_direction: Direction | None):
     assert action.direction == expected_direction
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("ATTACK", Action.ATTACK),
+        ("move_up", Action.MOVE_UP),
+        ("  WAIT ", Action.WAIT),
+    ],
+)
+def test_action_parse_valid(text: str, expected: Action):
+    assert Action.parse(text) is expected
 
 @pytest.mark.parametrize(
     ("invalid_input"),
