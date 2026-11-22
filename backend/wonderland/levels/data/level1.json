@@ -2,6 +2,7 @@
   "id": 1,
   "name": "Le terrier du Lapin Blanc",
   "max_ticks": 300,
+  "par_ticks": 80,
   "vision_radius": null,
   "win": "exit",
   "start_weapon": "KNIFE",

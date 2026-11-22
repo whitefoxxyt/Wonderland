@@ -71,11 +71,31 @@ def available_levels() -> list[int]:
     return sorted(int(p.stem.removeprefix("level")) for p in DATA_DIR.glob("level*.json"))
 
 
+def level_data(level: int | str | Path) -> dict[str, Any]:
+    """Contenu brut du fichier JSON d'un niveau."""
+    with level_path(level).open(encoding="utf-8") as f:
+        return json.load(f)
+
+
+def level_summary(level: int) -> dict[str, Any]:
+    """Infos fixes d'un niveau, utiles aux services (score, succès) et à l'API."""
+    data = level_data(level)
+    state = parse_level(data, seed=0)
+    return {
+        "id": level,
+        "name": data["name"],
+        "max_ticks": data["max_ticks"],
+        "par_ticks": data.get("par_ticks", data["max_ticks"]),
+        "vision_radius": data.get("vision_radius"),
+        "win": data.get("win", "exit"),
+        "hats": [item.position for item in state.items.values() if item.kind is ItemKind.HAT],
+        "mobs": len(state.mobs),
+    }
+
+
 def load_level(level: int | str | Path, seed: int | None = None) -> GameState:
     """Charge un niveau par numéro (1..5) ou par chemin de fichier."""
-    with level_path(level).open(encoding="utf-8") as f:
-        data = json.load(f)
-    return parse_level(data, seed)
+    return parse_level(level_data(level), seed)
 
 
 def parse_level(data: dict[str, Any], seed: int | None = None) -> GameState:

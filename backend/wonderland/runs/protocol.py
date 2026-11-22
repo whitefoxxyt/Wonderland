@@ -63,6 +63,8 @@ class RunEnd(BaseModel):
     status: str
     levels_completed: list[int]
     total_ticks: int
+    score: int = 0
+    achievements: list[str] = []  # noms des succès débloqués pendant cette partie
     reason: str = ""
 
 

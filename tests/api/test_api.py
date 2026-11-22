@@ -7,6 +7,7 @@ from conftest import load_reference_bot
 from fastapi.testclient import TestClient
 from wonderland.api.app import create_app
 from wonderland.config import Settings
+from wonderland.persistence import Database
 from wonderland.teams import Team, TeamRegistry
 
 TOKEN = "secret-token"
@@ -17,7 +18,7 @@ def client() -> TestClient:
     settings = Settings()
     settings.tick_timeout = 1.0
     settings.run_cooldown = 0
-    app = create_app(settings, TeamRegistry([Team("t1", "Equipe test", TOKEN)]))
+    app = create_app(settings, TeamRegistry([Team("t1", "Equipe test", TOKEN)]), Database(":memory:"))
     return TestClient(app)
 
 
@@ -65,3 +66,27 @@ def test_full_practice_game_over_websocket(client):
     run = client.get(f"/api/runs/{hello['run_id']}").json()
     assert run["levels_completed"] == [1]
     assert run["latency"]["timeouts"] == 0
+
+
+def test_team_dashboard_requires_token(client):
+    assert client.get("/api/teams/me").status_code == 401
+    me = client.get("/api/teams/me", headers={"X-Team-Token": TOKEN}).json()
+    assert me["unlocked_level"] == 1
+    assert len(me["achievements"]) == 16
+
+
+def test_leaderboard_and_achievements_after_a_game(client):
+    decide = load_reference_bot().decide
+    with client.websocket_connect(f"/ws/bot?token={TOKEN}&mode=practice&level=1") as ws:
+        while (message := ws.receive_json())["type"] != "run_end":
+            if message["type"] == "observation":
+                action = decide(message["data"])
+                ws.send_json({"type": "action", "tick": message["tick"], "action": action})
+    assert message["score"] > 1000
+    assert "Dans le terrier" in message["achievements"]
+
+    board = client.get("/api/leaderboard").json()
+    assert board[0]["max_level"] == 1
+    catalog = client.get("/api/achievements").json()
+    assert next(a for a in catalog if a["name"] == "Dans le terrier")["teams"] == 1
+    assert client.get(f"/api/teams/me?token={TOKEN}").json()["unlocked_level"] == 2

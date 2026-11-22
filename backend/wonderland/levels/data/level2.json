@@ -2,6 +2,7 @@
   "id": 2,
   "name": "Le the du Chapelier fou",
   "max_ticks": 400,
+  "par_ticks": 100,
   "vision_radius": null,
   "win": "exit",
   "start_weapon": "KNIFE",

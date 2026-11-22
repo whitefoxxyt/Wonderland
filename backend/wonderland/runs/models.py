@@ -66,6 +66,9 @@ class RunInfo:
     latency: LatencyStats = field(default_factory=LatencyStats)
     started_at: float = field(default_factory=time.time)
     ended_at: float | None = None
+    kills: int = 0
+    score: int = 0
+    achievements_unlocked: list[str] = field(default_factory=list)
 
     @property
     def levels_completed(self) -> list[int]:
@@ -88,6 +91,9 @@ class RunInfo:
                 "max_ms": round(self.latency.max * 1000, 1),
                 "timeouts": self.latency.timeouts,
             },
+            "kills": self.kills,
+            "score": self.score,
+            "achievements_unlocked": self.achievements_unlocked,
             "started_at": self.started_at,
             "ended_at": self.ended_at,
         }

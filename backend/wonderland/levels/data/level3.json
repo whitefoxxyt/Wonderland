@@ -2,6 +2,7 @@
   "id": 3,
   "name": "La foret brumeuse",
   "max_ticks": 500,
+  "par_ticks": 170,
   "vision_radius": 3,
   "win": "exit",
   "start_weapon": "SUGAR_LAUNCHER",

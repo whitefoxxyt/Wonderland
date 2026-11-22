@@ -19,8 +19,9 @@ from dataclasses import dataclass
 
 from wonderland.config import Settings
 from wonderland.levels import available_levels
+from wonderland.runs.listeners import RunListener
 from wonderland.runs.models import RunInfo, RunMode, RunStatus
-from wonderland.runs.run import BotConnection, Run, TickListener
+from wonderland.runs.run import BotConnection, Run
 from wonderland.teams import Team
 
 Slot = tuple[str, RunMode]  # (équipe, mode)
@@ -37,18 +38,19 @@ class _ActiveRun:
 
 
 class RunManager:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, unlocked: dict[str, int] | None = None) -> None:
+        """`unlocked` : niveau max débloqué par équipe (rechargé depuis la base au démarrage)."""
         self.settings = settings
         self._active: dict[str, _ActiveRun] = {}
         self._slots: dict[Slot, str] = {}
         self._last_start: dict[Slot, float] = {}
         self._history: dict[str, RunInfo] = {}
-        self._unlocked: dict[str, int] = {}
-        self._listeners: list[TickListener] = []
+        self._unlocked: dict[str, int] = dict(unlocked or {})
+        self._listeners: list[RunListener] = []
 
     # ---------- abonnements (succès, score, direct…) ----------
 
-    def subscribe(self, listener: TickListener) -> None:
+    def subscribe(self, listener: RunListener) -> None:
         self._listeners.append(listener)
 
     # ---------- lancement ----------
@@ -112,9 +114,10 @@ class RunManager:
         return active.info if active else self._history.get(run_id)
 
     def unlocked_level(self, team_id: str) -> int:
+        last = max(available_levels())
         if self.settings.unlock_all:
-            return max(available_levels())
-        return self._unlocked.get(team_id, 1)
+            return last
+        return min(self._unlocked.get(team_id, 1), last)
 
     # ---------- interne ----------
 

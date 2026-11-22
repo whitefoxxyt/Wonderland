@@ -31,6 +31,10 @@ class Settings:
     teams_file: Path = field(
         default_factory=lambda: Path(_env("TEAMS_FILE", str(PROJECT_ROOT / "teams.json")))
     )
+    # Base SQLite (parties, succès). ":memory:" pour une base jetable.
+    db_path: str = field(
+        default_factory=lambda: _env("DB_PATH", str(PROJECT_ROOT / "wonderland.db"))
+    )
     # Vrai = tous les niveaux jouables en entraînement sans les avoir débloqués (tests, répétition).
     unlock_all: bool = field(default_factory=lambda: _env("UNLOCK_ALL", "0") == "1")
     # Niveaux de la campagne, dans l'ordre.

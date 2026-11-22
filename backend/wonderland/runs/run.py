@@ -7,15 +7,15 @@ La boucle ne connaît pas les WebSockets : elle parle à un BotConnection.
 from __future__ import annotations
 
 import asyncio
+import logging
 import random
 import time
-from collections.abc import Callable
 from typing import Any, Protocol
 
 from wonderland.config import Settings
-from wonderland.engine import Engine, GameState, Status, observe
-from wonderland.engine.events import Event
+from wonderland.engine import Engine, Status, observe
 from wonderland.levels import load_level
+from wonderland.runs.listeners import RunListener
 from wonderland.runs.models import LevelResult, RunInfo, RunMode, RunStatus
 from wonderland.runs.protocol import (
     Hello,
@@ -26,8 +26,7 @@ from wonderland.runs.protocol import (
     parse_action,
 )
 
-# Appelé après chaque tick : (run, état, événements). Servira aux succès, au score, au direct.
-TickListener = Callable[[RunInfo, GameState, list[Event]], None]
+log = logging.getLogger(__name__)
 
 
 class BotDisconnected(Exception):
@@ -51,7 +50,7 @@ class Run:
         info: RunInfo,
         connection: BotConnection,
         settings: Settings,
-        listeners: list[TickListener] | None = None,
+        listeners: list[RunListener] | None = None,
     ) -> None:
         self.info = info
         self.connection = connection
@@ -97,6 +96,7 @@ class Run:
         info.current_tick = 0
         practice_seed = seed if info.mode is RunMode.PRACTICE else None
         await self._send(LevelStart(level=level, name=state.config.name, seed=practice_seed))
+        self._notify("on_level_start", info, state)
 
         while state.running:
             await self._send(
@@ -105,14 +105,14 @@ class Run:
             action, timed_out = await self._await_action(state.tick)
             events = self.engine.step(state, action, timed_out=timed_out)
             info.current_tick = state.tick
-            for listener in self.listeners:
-                listener(info, state, events)
+            self._notify("on_tick", info, state, events)
             await asyncio.sleep(0)  # laisse tourner les autres parties
 
         info.total_ticks += state.tick
         info.results.append(
             LevelResult(level, state.status.name, state.tick, state.player.hp, len(state.player.hats))
         )
+        self._notify("on_level_end", info, state)
         await self._send(
             LevelEnd(level=level, status=state.status.name, ticks=state.tick, hp=state.player.hp)
         )
@@ -144,11 +144,19 @@ class Run:
         self.info.latency.timeouts += 1
         return None, True
 
+    def _notify(self, hook: str, *args: Any) -> None:
+        for listener in self.listeners:
+            try:
+                getattr(listener, hook)(*args)
+            except Exception:
+                log.exception("Écouteur %s.%s en erreur", type(listener).__name__, hook)
+
     async def _send(self, message: Any) -> None:
         await self.connection.send(message.model_dump())
 
     async def _finish(self, connected: bool) -> None:
         self.info.ended_at = time.time()
+        self._notify("on_run_end", self.info)
         if not connected:
             return
         try:
@@ -157,6 +165,8 @@ class Run:
                     status=self.info.status.value,
                     levels_completed=self.info.levels_completed,
                     total_ticks=self.info.total_ticks,
+                    score=self.info.score,
+                    achievements=self.info.achievements_unlocked,
                 )
             )
         except (BotDisconnected, RuntimeError):

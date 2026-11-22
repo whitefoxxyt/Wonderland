@@ -2,6 +2,7 @@
   "id": 4,
   "name": "Le labyrinthe de haies de la Reine",
   "max_ticks": 600,
+  "par_ticks": 70,
   "vision_radius": null,
   "win": "exit",
   "start_weapon": "SUGAR_LAUNCHER",
