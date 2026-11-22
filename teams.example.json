@@ -1,0 +1,7 @@
+[
+  {"id": "team1", "name": "Equipe 1", "token": "change-me-1"},
+  {"id": "team2", "name": "Equipe 2", "token": "change-me-2"},
+  {"id": "team3", "name": "Equipe 3", "token": "change-me-3"},
+  {"id": "team4", "name": "Equipe 4", "token": "change-me-4"},
+  {"id": "team5", "name": "Equipe 5", "token": "change-me-5"}
+]

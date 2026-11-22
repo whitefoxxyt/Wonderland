@@ -9,8 +9,8 @@ requires-python = ">=3.12"
 dependencies = []          # vide : le moteur n'a besoin de rien
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff"]
-server = ["fastapi", "uvicorn[standard]", "pydantic"]   # utile en phase 3
+dev = ["pytest", "ruff", "httpx"]          # httpx : client de test FastAPI
+server = ["fastapi", "uvicorn[standard]", "pydantic"]
 
 [tool.setuptools.packages.find]
 where = ["backend"]        # « mes packages sont dans backend/ »
