@@ -98,7 +98,10 @@ class Run:
         await self._send(LevelStart(level=level, name=state.config.name, seed=practice_seed))
         self._notify("on_level_start", info, state)
 
+        loop = asyncio.get_running_loop()
+        delay = self.settings.campaign_tick_delay if info.mode is RunMode.CAMPAIGN else 0.0
         while state.running:
+            tick_started = loop.time()
             await self._send(
                 ObservationMessage(run_id=info.id, level=level, tick=state.tick, data=observe(state))
             )
@@ -106,7 +109,8 @@ class Run:
             events = self.engine.step(state, action, timed_out=timed_out)
             info.current_tick = state.tick
             self._notify("on_tick", info, state, events)
-            await asyncio.sleep(0)  # laisse tourner les autres parties
+            # Rythme minimal en campagne (spectateurs) ; sinon on laisse juste tourner les autres parties.
+            await asyncio.sleep(max(0.0, delay - (loop.time() - tick_started)))
 
         info.total_ticks += state.tick
         info.results.append(

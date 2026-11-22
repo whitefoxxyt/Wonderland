@@ -37,5 +37,12 @@ class Settings:
     )
     # Vrai = tous les niveaux jouables en entraînement sans les avoir débloqués (tests, répétition).
     unlock_all: bool = field(default_factory=lambda: _env("UNLOCK_ALL", "0") == "1")
+    # Durée minimale d'un tick en CAMPAGNE (secondes) : rend les parties regardables en direct.
+    # L'entraînement reste à pleine vitesse.
+    campaign_tick_delay: float = field(
+        default_factory=lambda: float(_env("CAMPAIGN_TICK_DELAY", "0.1"))
+    )
+    # Images par seconde max envoyées aux spectateurs pour une partie.
+    live_fps: float = field(default_factory=lambda: float(_env("LIVE_FPS", "10")))
     # Niveaux de la campagne, dans l'ordre.
     campaign_levels: tuple[int, ...] = (1, 2, 3, 4, 5)

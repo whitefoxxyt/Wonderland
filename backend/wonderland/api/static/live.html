@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wonderland — direct</title>
+<style>
+  :root { --bg:#14101c; --panel:#1f1a2b; --text:#eee6f5; --muted:#9a8fb0; --accent:#e0475b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui, sans-serif; }
+  header { display:flex; gap:16px; align-items:center; padding:10px 16px; background:var(--panel); }
+  header h1 { font-size:18px; margin:0; color:var(--accent); }
+  header a { color:var(--muted); }
+  main { display:grid; grid-template-columns: 1fr 320px; gap:16px; padding:16px; }
+  #stage { display:flex; flex-wrap:wrap; gap:16px; align-content:flex-start; }
+  .run { background:var(--panel); border-radius:8px; padding:8px; }
+  .run h2 { font-size:14px; margin:0 0 6px; display:flex; justify-content:space-between; gap:12px; }
+  .run .meta { color:var(--muted); font-weight:normal; }
+  canvas { display:block; image-rendering:pixelated; }
+  aside section { background:var(--panel); border-radius:8px; padding:10px; margin-bottom:16px; }
+  aside h3 { margin:0 0 8px; font-size:14px; color:var(--muted); }
+  #feed div { padding:3px 0; border-bottom:1px solid #2c2540; }
+  table { width:100%; border-collapse:collapse; }
+  td { padding:3px 4px; } td:last-child { text-align:right; }
+  .empty { color:var(--muted); }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Wonderland — en direct</h1>
+  <a href="?">vedette</a><a href="?mode=all">mosaïque</a>
+  <span id="status" class="empty">connexion…</span>
+</header>
+<main>
+  <div id="stage"><p class="empty">Aucune partie en cours.</p></div>
+  <aside>
+    <section><h3>Moments forts</h3><div id="feed"></div></section>
+    <section><h3>Classement</h3><table id="board"></table></section>
+  </aside>
+</main>
+<script>
+const params = new URLSearchParams(location.search);
+const mosaic = params.get("mode") === "all";
+const path = params.get("run") ? `/ws/live/run/${params.get("run")}` : mosaic ? "/ws/live/all" : "/ws/live";
+const CELL = mosaic ? 14 : 30;
+const TILE = { "#": "#2f5d3a", ".": "#e9dcc0", "^": "#e9dcc0", "~": "#b9b3c9", "E": "#f2c14e" };
+const MOB = { dormouse: "#8d6e63", march_hare: "#d4a373", card_guard: "#c62828", card_archer: "#1565c0", queen: "#b71c1c" };
+const ITEM = { HAT: "#7b1fa2", POTION: "#ec407a", LAUNCHER: "#fafafa" };
+const DIR = { UP: [0,-1], DOWN: [0,1], LEFT: [-1,0], RIGHT: [1,0] };
+let frames = {}, featured = null;
+
+function connect() {
+  const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${path}`);
+  ws.onopen = () => status("en direct");
+  ws.onclose = () => { status("déconnecté, nouvelle tentative…"); setTimeout(connect, 2000); };
+  ws.onmessage = (e) => handle(JSON.parse(e.data));
+}
+function status(text) { document.getElementById("status").textContent = text; }
+
+function handle(msg) {
+  if (msg.type === "snapshot") { frames = {}; featured = msg.featured; msg.runs.forEach(f => frames[f.run_id] = f); }
+  else if (msg.type === "frame") frames[msg.run_id] = msg;
+  else if (msg.type === "featured") { featured = msg.run_id; if (!mosaic) frames = {}; }
+  else if (msg.type === "run_end") { setTimeout(() => { delete frames[msg.run.id]; render(); }, 4000);
+    feed(`${msg.team} : fin de partie (${msg.run.status}, ${msg.run.score} pts)`); }
+  else if (msg.type === "highlight") feed(msg.text);
+  else if (msg.type === "leaderboard") board(msg.rows);
+  render();
+}
+
+function render() {
+  const stage = document.getElementById("stage");
+  const shown = Object.values(frames);
+  if (!shown.length) { stage.innerHTML = '<p class="empty">Aucune partie en cours.</p>'; return; }
+  stage.innerHTML = "";
+  for (const f of shown) stage.appendChild(drawRun(f));
+}
+
+function drawRun(f) {
+  const box = document.createElement("div"); box.className = "run";
+  const hearts = "♥".repeat(f.player.hp) + "♡".repeat(f.player.max_hp - f.player.hp);
+  box.innerHTML = `<h2><span>${f.team} — ${f.level_name}</span>
+    <span class="meta">${f.mode} · tick ${f.tick}/${f.max_ticks} · ${hearts} · 🎩${f.player.hats}</span></h2>`;
+  const c = document.createElement("canvas");
+  const w = f.grid[0].length, h = f.grid.length;
+  c.width = w * CELL; c.height = h * CELL;
+  const g = c.getContext("2d");
+  f.grid.forEach((row, y) => [...row].forEach((ch, x) => { g.fillStyle = TILE[ch] || "#000"; g.fillRect(x*CELL, y*CELL, CELL, CELL); }));
+  for (const t of f.traps) {
+    g.fillStyle = t.active ? "#e53935" : "#ef9a9a"; g.globalAlpha = t.hidden ? 0.35 : 1;
+    g.fillRect(t.x*CELL + CELL*0.25, t.y*CELL + CELL*0.25, CELL*0.5, CELL*0.5); g.globalAlpha = 1;
+  }
+  for (const i of f.items) dot(g, i.x, i.y, ITEM[i.kind], 0.28);
+  for (const p of f.projectiles) dot(g, p.x, p.y, p.kind === "sugar" ? "#ffffff" : "#212121", 0.15);
+  for (const m of f.mobs) {
+    dot(g, m.x, m.y, MOB[m.kind] || "#555", m.boss ? 0.48 : 0.36);
+    if (m.state !== "IDLE") { g.strokeStyle = m.state === "STUNNED" ? "#fdd835" : "#ff1744"; g.lineWidth = 2;
+      g.strokeRect(m.x*CELL+1, m.y*CELL+1, CELL-2, CELL-2); }
+  }
+  const p = f.player; dot(g, p.x, p.y, p.parrying ? "#80deea" : "#1e88e5", 0.38);
+  const [dx, dy] = DIR[p.facing]; g.fillStyle = "#fff";
+  g.beginPath(); g.arc((p.x+0.5+dx*0.3)*CELL, (p.y+0.5+dy*0.3)*CELL, CELL*0.1, 0, 7); g.fill();
+  if (f.vision_radius) {
+    const r = f.vision_radius; g.fillStyle = "rgba(10,6,20,0.55)";
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)
+      if ((x-p.x)**2 + (y-p.y)**2 > r*r + r) g.fillRect(x*CELL, y*CELL, CELL, CELL);
+  }
+  box.appendChild(c);
+  return box;
+}
+function dot(g, x, y, color, radius) {
+  g.fillStyle = color; g.beginPath(); g.arc((x+0.5)*CELL, (y+0.5)*CELL, CELL*radius, 0, 7); g.fill();
+}
+function feed(text) {
+  const el = document.createElement("div"); el.textContent = text;
+  const box = document.getElementById("feed"); box.prepend(el);
+  while (box.children.length > 12) box.lastChild.remove();
+}
+function board(rows) {
+  document.getElementById("board").innerHTML = rows.map(r =>
+    `<tr><td>${r.rank}.</td><td>${r.team}</td><td>niv ${r.max_level}</td><td>${r.best_campaign_score} pts</td></tr>`).join("");
+}
+fetch("/api/leaderboard").then(r => r.json()).then(board).catch(() => {});
+connect();
+</script>
+</body>
+</html>

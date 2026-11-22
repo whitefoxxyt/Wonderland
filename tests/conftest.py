@@ -89,6 +89,7 @@ def fast_settings(**overrides: Any) -> Settings:
     base = Settings()
     base.tick_timeout = 0.2
     base.run_cooldown = 0
+    base.campaign_tick_delay = 0
     for key, value in overrides.items():
         setattr(base, key, value)
     return base

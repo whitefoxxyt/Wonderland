@@ -15,6 +15,9 @@ server = ["fastapi", "uvicorn[standard]", "pydantic"]
 [tool.setuptools.packages.find]
 where = ["backend"]        # « mes packages sont dans backend/ »
 
+[tool.setuptools.package-data]
+wonderland = ["levels/data/*.json", "api/static/*.html"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

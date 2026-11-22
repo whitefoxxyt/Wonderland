@@ -6,24 +6,36 @@ Lancer le serveur (depuis la racine du projet, venv activé) :
 Un bot se connecte sur :
     ws://<hôte>:8000/ws/bot?token=<token>&mode=practice&level=1
     ws://<hôte>:8000/ws/bot?token=<token>&mode=campaign
+
+Spectateurs :
+    ws://<hôte>:8000/ws/live              partie vedette + moments forts + classement
+    ws://<hôte>:8000/ws/live/all          toutes les parties (mosaïque)
+    ws://<hôte>:8000/ws/live/run/<run_id> une partie précise
+    http://<hôte>:8000/live               page de test minimale (en attendant le front Angular)
 """
 
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
 
+from wonderland.broadcast import ALL, FEATURED, BroadcastHub, run_channel
 from wonderland.config import Settings
 from wonderland.levels import available_levels, level_summary
 from wonderland.persistence import Database
+from wonderland.replays import ReplayRecorder, replay_frames
 from wonderland.runs import BotDisconnected, RunManager, RunMode, RunRejected
 from wonderland.runs.protocol import ErrorMessage, json_schemas
 from wonderland.services.achievements import AchievementService
 from wonderland.services.leaderboard import RunRecorder, leaderboard
 from wonderland.services.scoring import ScoringService
 from wonderland.teams import Team, TeamRegistry
+
+LIVE_PAGE = Path(__file__).parent / "static" / "live.html"
 
 # Codes de fermeture WebSocket applicatifs (plage 4000-4999).
 CLOSE_UNAUTHORIZED = 4401
@@ -64,11 +76,20 @@ def create_app(
     db = db or Database(settings.db_path)
     manager = RunManager(settings, unlocked=db.unlocked_levels())
 
-    # Ordre important : le score et les succès remplissent la partie AVANT son enregistrement.
+    # Ordre important : le score et les succès remplissent la partie AVANT son enregistrement,
+    # et la diffusion passe en dernier pour annoncer un classement à jour.
     achievements = AchievementService(db)
+    hub = BroadcastHub(
+        settings,
+        team_name=lambda team_id: team.name if (team := teams.get(team_id)) else team_id,
+        leaderboard=lambda: leaderboard(db, teams, achievements),
+    )
+    achievements.on_unlock(hub.on_achievement)
     manager.subscribe(ScoringService())
     manager.subscribe(achievements)
+    manager.subscribe(ReplayRecorder(db))
     manager.subscribe(RunRecorder(db))
+    manager.subscribe(hub)
 
     app = FastAPI(title="Wonderland", version="0.1.0")
     app.state.settings = settings
@@ -76,6 +97,7 @@ def create_app(
     app.state.manager = manager
     app.state.db = db
     app.state.achievements = achievements
+    app.state.hub = hub
 
     def current_team(token: str | None, header_token: str | None) -> Team:
         team = teams.authenticate(header_token or token)
@@ -128,6 +150,31 @@ def create_app(
             raise HTTPException(status_code=404, detail="Partie inconnue")
         return info.to_dict()
 
+    @app.get("/api/runs/{run_id}/replay")
+    def run_replay(run_id: str) -> dict[str, Any]:
+        """Graine + actions de chaque niveau (léger)."""
+        replay = db.load_replay(run_id)
+        if replay is None:
+            raise HTTPException(status_code=404, detail="Replay inconnu")
+        return replay
+
+    @app.get("/api/runs/{run_id}/replay/{level_index}")
+    def run_replay_frames(run_id: str, level_index: int) -> list[dict[str, Any]]:
+        """Toutes les images d'un niveau du replay (level_index = 0 pour le premier niveau joué)."""
+        replay = db.load_replay(run_id)
+        if replay is None or not 0 <= level_index < len(replay["levels"]):
+            raise HTTPException(status_code=404, detail="Replay inconnu")
+        return replay_frames(replay, level_index)
+
+    @app.get("/api/live")
+    def live_state() -> dict[str, Any]:
+        """État du direct en HTTP (secours si le WebSocket est bloqué)."""
+        return hub.snapshot(ALL)
+
+    @app.get("/live", response_class=HTMLResponse)
+    def live_page() -> str:
+        return LIVE_PAGE.read_text(encoding="utf-8")
+
     @app.get("/api/protocol/schema")
     def protocol_schema() -> dict[str, Any]:
         return json_schemas()
@@ -164,6 +211,32 @@ def create_app(
             await websocket.close()
         except RuntimeError:
             pass  # déjà fermé par le bot
+
+    # ---------- WebSockets des spectateurs ----------
+
+    async def spectate(websocket: WebSocket, channel: str) -> None:
+        await websocket.accept()
+        queue = hub.subscribe(channel)
+        try:
+            await websocket.send_json(hub.snapshot(channel))
+            while True:
+                await websocket.send_json(await queue.get())
+        except (WebSocketDisconnect, RuntimeError):
+            pass
+        finally:
+            hub.unsubscribe(channel, queue)
+
+    @app.websocket("/ws/live")
+    async def live_featured(websocket: WebSocket) -> None:
+        await spectate(websocket, FEATURED)
+
+    @app.websocket("/ws/live/all")
+    async def live_all(websocket: WebSocket) -> None:
+        await spectate(websocket, ALL)
+
+    @app.websocket("/ws/live/run/{run_id}")
+    async def live_run(websocket: WebSocket, run_id: str) -> None:
+        await spectate(websocket, run_channel(run_id))
 
     return app
 

@@ -18,6 +18,7 @@ def client() -> TestClient:
     settings = Settings()
     settings.tick_timeout = 1.0
     settings.run_cooldown = 0
+    settings.campaign_tick_delay = 0
     app = create_app(settings, TeamRegistry([Team("t1", "Equipe test", TOKEN)]), Database(":memory:"))
     return TestClient(app)
 
@@ -90,3 +91,27 @@ def test_leaderboard_and_achievements_after_a_game(client):
     catalog = client.get("/api/achievements").json()
     assert next(a for a in catalog if a["name"] == "Dans le terrier")["teams"] == 1
     assert client.get(f"/api/teams/me?token={TOKEN}").json()["unlocked_level"] == 2
+
+
+def test_live_page_and_snapshot(client):
+    page = client.get("/live")
+    assert page.status_code == 200
+    assert "/ws/live" in page.text
+    with client.websocket_connect("/ws/live") as ws:
+        assert ws.receive_json() == {"type": "snapshot", "featured": None, "runs": []}
+    assert client.get("/api/live").json()["runs"] == []
+
+
+def test_replay_routes(client):
+    decide = load_reference_bot().decide
+    with client.websocket_connect(f"/ws/bot?token={TOKEN}&mode=practice&level=1") as ws:
+        run_id = ws.receive_json()["run_id"]
+        while (message := ws.receive_json())["type"] != "run_end":
+            if message["type"] == "observation":
+                action = decide(message["data"])
+                ws.send_json({"type": "action", "tick": message["tick"], "action": action})
+    replay = client.get(f"/api/runs/{run_id}/replay").json()
+    assert replay["levels"][0]["level"] == 1
+    frames = client.get(f"/api/runs/{run_id}/replay/0").json()
+    assert frames[-1]["status"] == "WON"
+    assert client.get(f"/api/runs/{run_id}/replay/5").status_code == 404

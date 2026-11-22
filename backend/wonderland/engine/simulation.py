@@ -50,6 +50,7 @@ class Engine:
 
         if isinstance(action, str):
             action = Action.parse(action)
+        state.last_input = (action.name if action is not None else None, timed_out)
         if timed_out:
             events.append(TimedOut())
             action = Action.WAIT

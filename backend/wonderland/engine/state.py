@@ -49,6 +49,8 @@ class GameState:
     status: Status = Status.RUNNING
     discovered: set[tuple[int, int]] = field(default_factory=set)
     last_events: list[Event] = field(default_factory=list)
+    # Entrée brute du dernier tick (action ou None, timeout) : suffit à rejouer la partie.
+    last_input: tuple[str | None, bool] | None = None
     _next_id: int = 2  # 1 est réservé au joueur
 
     # ---------- identifiants ----------
