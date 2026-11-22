@@ -77,6 +77,7 @@ class LateRabbit(Achievement):
     name = "Je suis en retard !"
     description = f"Terminer la campagne en moins de {TIME_LIMIT_TICKS} ticks (15 minutes de jeu)."
     hint = "Le Lapin n'a jamais le temps…"
+    extra_hint = "Une campagne complète en moins de 900 ticks."
     points = 150
 
     def on_run_end(self, ctx: AchievementContext) -> bool:
@@ -93,6 +94,7 @@ class OffWithTheirHeads(Achievement):
     name = "Qu'on leur coupe la tête !"
     description = "Gagner chaque niveau peuplé sans laisser un seul ennemi debout."
     hint = "Ne laissez personne derrière vous."
+    extra_hint = "Gagnez chaque niveau peuplé sans laisser un seul ennemi en vie."
     points = 100
 
     def on_level_end(self, ctx: AchievementContext, state: GameState) -> bool:
@@ -108,6 +110,7 @@ class HatCollector(Achievement):
     name = "Collectionneur de chapeaux"
     description = "Ramasser tous les chapeaux du Chapelier fou."
     hint = "Le Chapelier a perdu quelque chose à chaque étape."
+    extra_hint = "Un chapeau est caché dans chacun des 5 niveaux."
     points = 100
 
     def on_tick(self, ctx: AchievementContext, state: GameState, events: list[Event]) -> bool:
@@ -127,6 +130,7 @@ class MoreDeadThanAlive(Achievement):
     name = "Plus mort que vif"
     description = "Mourir au moins une fois dans chaque niveau."
     hint = "L'échec est aussi un chemin."
+    extra_hint = "Mourez au moins une fois dans chacun des 5 niveaux."
     points = 50
 
     def on_tick(self, ctx: AchievementContext, state: GameState, events: list[Event]) -> bool:
@@ -158,6 +162,7 @@ class RiggedCroquet(_BossDamageTracker):
     name = "Partie de croquet truquée"
     description = "Vaincre la Reine de Cœur sans jamais la frapper ni lui tirer dessus."
     hint = "La Reine ne regarde jamais où elle met les pieds."
+    extra_hint = "Ses charges l'étourdissent sur un piège actif, et les pièges lui font double dégâts."
     points = 200
 
     def on_level_end(self, ctx: AchievementContext, state: GameState) -> bool:
@@ -170,6 +175,7 @@ class KnifeIsEnough(_BossDamageTracker):
     name = "Le couteau suffit"
     description = "Vaincre la Reine de Cœur uniquement au couteau."
     hint = "Un vrai duel ne se fait pas de loin."
+    extra_hint = "Battez la Reine uniquement au corps-à-corps."
     points = 150
 
     def on_level_end(self, ctx: AchievementContext, state: GameState) -> bool:
@@ -201,6 +207,7 @@ class TeaTime(_StayStill):
     name = "Il est toujours six heures"
     description = "Rester assis 6 ticks sur la chaise vide de la table du thé (niveau 2)."
     hint = "Au thé, il faut savoir s'asseoir."
+    extra_hint = "Niveau 2 : restez 6 ticks sur la chaise vide, au cœur de la table."
     points = 50
     spot = TEA_CHAIR
     ticks_needed = 6
@@ -211,6 +218,7 @@ class CheshireSmile(_StayStill):
     name = "Le sourire sans le chat"
     description = "Attendre 3 ticks au cœur de la brume de la forêt (niveau 3)."
     hint = "Certains n'apparaissent qu'à ceux qui attendent dans la brume."
+    extra_hint = "Niveau 3 : attendez (WAIT) 3 ticks au centre de la brume du nord."
     points = 75
     spot = CHESHIRE_SPOT
     ticks_needed = 3
@@ -222,6 +230,7 @@ class RoyalGuard(Achievement):
     name = "Garde royale"
     description = "Réussir 10 parades dans une même partie."
     hint = "La meilleure attaque…"
+    extra_hint = "10 parades réussies dans une même partie."
     points = 75
 
     def on_tick(self, ctx: AchievementContext, state: GameState, events: list[Event]) -> bool:
@@ -236,6 +245,7 @@ class NotAScratch(Achievement):
     name = "Sans une égratignure"
     description = "Terminer le niveau 2 sans perdre un seul PV."
     hint = "Un thé, pas une bagarre."
+    extra_hint = "Terminez le niveau 2 sans perdre un seul PV."
     points = 75
 
     def on_level_start(self, ctx: AchievementContext, state: GameState) -> bool:
@@ -256,6 +266,7 @@ class ShortestPath(Achievement):
     name = "Tout droit, sans hésiter"
     description = "Terminer le labyrinthe (niveau 4) sans jamais repasser par la même case."
     hint = "Tout droit, sans hésiter."
+    extra_hint = "Terminez le niveau 4 sans jamais repasser sur une case."
     points = 100
 
     def on_level_start(self, ctx: AchievementContext, state: GameState) -> bool:
@@ -280,6 +291,7 @@ class CleanCode(Achievement):
     name = "Code propre"
     description = "Gagner une campagne sans aucune action invalide ni dépassement de temps."
     hint = "Le Lapin déteste attendre une réponse."
+    extra_hint = "Une campagne gagnée sans action invalide ni dépassement de temps."
     points = 100
 
     def on_tick(self, ctx: AchievementContext, state: GameState, events: list[Event]) -> bool:
@@ -301,6 +313,7 @@ class SugarRain(Achievement):
     name = "Pluie de sucre"
     description = "Abattre 5 ennemis au lance-sucres dans une même partie."
     hint = "Le Chapelier a plus d'un tour dans son sac."
+    extra_hint = "5 ennemis abattus au lance-sucres dans une même partie."
     points = 75
 
     def on_tick(self, ctx: AchievementContext, state: GameState, events: list[Event]) -> bool:
@@ -315,6 +328,7 @@ class Tightrope(Achievement):
     name = "Pas de deux"
     description = "Dans le labyrinthe, marcher 5 fois sur un piège pile quand il est éteint."
     hint = "Les pièges de la Reine respirent. Apprenez leur rythme."
+    extra_hint = "Niveau 4 : marchez 5 fois sur un piège pendant qu'il est éteint."
     points = 75
 
     def on_tick(self, ctx: AchievementContext, state: GameState, events: list[Event]) -> bool:

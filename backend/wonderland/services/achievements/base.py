@@ -32,6 +32,7 @@ class Achievement:
     name: str = ""
     description: str = ""  # révélée une fois débloqué
     hint: str = ""  # affiché tant que le succès est verrouillé
+    extra_hint: str = ""  # second indice, plus explicite, révélé par l'organisateur
     points: int = 50
     hidden: bool = True  # caché = nom affiché « ??? » tant qu'il n'est pas débloqué
 
@@ -47,14 +48,15 @@ class Achievement:
     def on_run_end(self, ctx: AchievementContext) -> bool:
         return False
 
-    def public(self, unlocked: bool) -> dict[str, Any]:
-        """Vue envoyée aux équipes."""
+    def public(self, unlocked: bool, hint_level: int = 1) -> dict[str, Any]:
+        """Vue envoyée aux équipes. hint_level >= 2 : le second indice est révélé."""
         visible = unlocked or not self.hidden
         return {
             "id": self.id if visible else None,
             "name": self.name if visible else "???",
             "description": self.description if visible else None,
             "hint": self.hint,
+            "extra_hint": self.extra_hint if (visible or hint_level >= 2) and self.extra_hint else None,
             "points": self.points,
             "unlocked": unlocked,
         }

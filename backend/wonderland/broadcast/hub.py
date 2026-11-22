@@ -12,6 +12,7 @@ Messages envoyés :
     highlight  moment fort (niveau gagné, mort, phase du boss, succès débloqué)
     run_end    fin d'une partie (résumé, score)
     leaderboard classement mis à jour (après chaque partie)
+    announcement message de l'organisation
 
 Chaque spectateur a sa propre file bornée : un spectateur lent perd les images
 les plus anciennes au lieu de ralentir les parties.
@@ -112,10 +113,7 @@ class BroadcastHub(RunListener):
             self._publish(channel, message)
         for store in (self._frames, self._scores, self._campaign, self._start_distance, self._last_sent):
             store.pop(run.id, None)
-        if self.leaderboard is not None:
-            rows = self.leaderboard()
-            for channel in (ALL, FEATURED):
-                self._publish(channel, {"type": "leaderboard", "rows": rows})
+        self.push_leaderboard()
         self._refresh_featured()
 
     def on_achievement(self, team_id: str, achievement: Any, run: RunInfo) -> None:
@@ -123,6 +121,17 @@ class BroadcastHub(RunListener):
         self.selector.highlight(run.id, self.clock())
         self._highlight(run, "achievement", f"{self.team_name(team_id)} débloque « {achievement.name} »")
         self._refresh_featured()
+
+    def announce(self, text: str) -> None:
+        """Message de l'organisation, affiché sur tous les écrans."""
+        for channel in (ALL, FEATURED):
+            self._publish(channel, {"type": "announcement", "text": text})
+
+    def push_leaderboard(self) -> None:
+        if self.leaderboard is not None:
+            rows = self.leaderboard()
+            for channel in (ALL, FEATURED):
+                self._publish(channel, {"type": "leaderboard", "rows": rows})
 
     # ---------- interne ----------
 

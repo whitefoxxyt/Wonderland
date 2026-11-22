@@ -72,7 +72,10 @@ def play(
             kind = message.get("type")
             if kind == "observation":
                 action = _safe_decide(decide, message["data"])
-                ws.send(json.dumps({"type": "action", "tick": message["tick"], "action": action}))
+                try:
+                    ws.send(json.dumps({"type": "action", "tick": message["tick"], "action": action}))
+                except ConnectionClosed:
+                    pass  # decide() trop lent : la partie est déjà finie, on lit le message de fin
             elif kind == "hello":
                 log(f"Partie {message['run_id']} ({message['mode']}) niveaux {message['levels']}")
             elif kind == "level_start":

@@ -23,6 +23,7 @@ from typing import Any
 from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
+from wonderland.api.admin import AdminContext, admin_router
 from wonderland.broadcast import ALL, FEATURED, BroadcastHub, run_channel
 from wonderland.config import Settings
 from wonderland.levels import available_levels, level_summary
@@ -75,14 +76,24 @@ def create_app(
     teams = teams or TeamRegistry.from_file(settings.teams_file)
     db = db or Database(settings.db_path)
     manager = RunManager(settings, unlocked=db.unlocked_levels())
+    manager.accept_runs = db.get_admin("accept_runs", True)
 
     # Ordre important : le score et les succès remplissent la partie AVANT son enregistrement,
     # et la diffusion passe en dernier pour annoncer un classement à jour.
     achievements = AchievementService(db)
+
+    def live_leaderboard() -> list[dict[str, Any]]:
+        return leaderboard(db, teams, achievements)
+
+    def public_leaderboard() -> list[dict[str, Any]]:
+        """Classement affiché au public : la copie figée par l'admin s'il y en a une."""
+        frozen = db.get_admin("frozen_leaderboard")
+        return frozen if frozen is not None else live_leaderboard()
+
     hub = BroadcastHub(
         settings,
         team_name=lambda team_id: team.name if (team := teams.get(team_id)) else team_id,
-        leaderboard=lambda: leaderboard(db, teams, achievements),
+        leaderboard=public_leaderboard,
     )
     achievements.on_unlock(hub.on_achievement)
     manager.subscribe(ScoringService())
@@ -98,6 +109,9 @@ def create_app(
     app.state.db = db
     app.state.achievements = achievements
     app.state.hub = hub
+    app.include_router(
+        admin_router(AdminContext(settings, manager, db, achievements, hub, live_leaderboard))
+    )
 
     def current_team(token: str | None, header_token: str | None) -> Team:
         team = teams.authenticate(header_token or token)
@@ -118,7 +132,7 @@ def create_app(
 
     @app.get("/api/leaderboard")
     def get_leaderboard() -> list[dict[str, Any]]:
-        return leaderboard(db, teams, achievements)
+        return public_leaderboard()
 
     @app.get("/api/achievements")
     def achievement_catalog() -> list[dict[str, Any]]:

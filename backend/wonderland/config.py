@@ -44,5 +44,7 @@ class Settings:
     )
     # Images par seconde max envoyées aux spectateurs pour une partie.
     live_fps: float = field(default_factory=lambda: float(_env("LIVE_FPS", "10")))
+    # Token des routes /api/admin (en-tête X-Admin-Token). Vide = routes admin désactivées.
+    admin_token: str = field(default_factory=lambda: _env("ADMIN_TOKEN", ""))
     # Niveaux de la campagne, dans l'ordre.
     campaign_levels: tuple[int, ...] = (1, 2, 3, 4, 5)

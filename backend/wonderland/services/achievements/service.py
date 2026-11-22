@@ -26,9 +26,20 @@ class AchievementService(RunListener):
         self._progress: dict[tuple[str, str], dict[str, Any]] = {}
         self._scratch: dict[tuple[str, str], dict[str, Any]] = {}
         self._callbacks: list[UnlockCallback] = []
+        self.hint_level: int = db.get_admin("hint_level", 1)
 
     def on_unlock(self, callback: UnlockCallback) -> None:
         self._callbacks.append(callback)
+
+    def set_hint_level(self, level: int) -> None:
+        self.hint_level = level
+        self.db.set_admin("hint_level", level)
+
+    def reset_cache(self) -> None:
+        """À appeler après une remise à zéro de la base."""
+        self._unlocked.clear()
+        self._progress.clear()
+        self._scratch.clear()
 
     # ---------- crochets de partie ----------
 
@@ -60,13 +71,13 @@ class AchievementService(RunListener):
 
     def for_team(self, team_id: str) -> list[dict[str, Any]]:
         unlocked = self.unlocked(team_id)
-        return [a.public(a.id in unlocked) for a in self.achievements]
+        return [a.public(a.id in unlocked, self.hint_level) for a in self.achievements]
 
     def catalog(self) -> list[dict[str, Any]]:
         """Vue publique : succès cachés masqués + nombre d'équipes qui les ont."""
         result = []
         for achievement in self.achievements:
-            entry = achievement.public(unlocked=False)
+            entry = achievement.public(unlocked=False, hint_level=self.hint_level)
             entry["teams"] = len(self.db.achievement_holders(achievement.id))
             result.append(entry)
         return result

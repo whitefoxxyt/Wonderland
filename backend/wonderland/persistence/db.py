@@ -1,10 +1,11 @@
 """Persistance SQLite (module standard sqlite3, aucune dépendance).
 
-Quatre tables :
+Cinq tables :
     runs                  une ligne par partie terminée
     achievements          succès débloqués (une ligne par équipe et par succès)
     achievement_progress  progression des succès « cumulatifs » (JSON libre)
     replays               graine + actions de chaque partie (suffit à la rejouer)
+    admin_state           réglages de l'organisateur (jeu figé, indices révélés…)
 
 Le serveur tourne dans un seul thread asyncio et les requêtes sont minuscules :
 pas besoin d'ORM ni de pool de connexions.
@@ -45,6 +46,11 @@ CREATE TABLE IF NOT EXISTS achievements (
     run_id         TEXT,
     unlocked_at    REAL NOT NULL,
     PRIMARY KEY (team_id, achievement_id)
+);
+
+CREATE TABLE IF NOT EXISTS admin_state (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS replays (
@@ -156,10 +162,20 @@ class Database:
 
     # ---------- admin ----------
 
+    def get_admin(self, key: str, default: Any = None) -> Any:
+        row = self.conn.execute("SELECT value FROM admin_state WHERE key = ?", (key,)).fetchone()
+        return json.loads(row["value"]) if row else default
+
+    def set_admin(self, key: str, value: Any) -> None:
+        self.conn.execute(
+            "INSERT OR REPLACE INTO admin_state VALUES (?, ?)", (key, json.dumps(value))
+        )
+        self.conn.commit()
+
     def reset(self) -> None:
         """Vide toutes les tables (avant l'événement, après la répétition générale)."""
         self.conn.executescript("DELETE FROM runs; DELETE FROM achievements; DELETE FROM achievement_progress;"
-            " DELETE FROM replays;")
+            " DELETE FROM replays; DELETE FROM admin_state;")
         self.conn.commit()
 
 

@@ -47,6 +47,7 @@ class RunManager:
         self._history: dict[str, RunInfo] = {}
         self._unlocked: dict[str, int] = dict(unlocked or {})
         self._listeners: list[RunListener] = []
+        self.accept_runs = True  # False = jeu figé par l'organisateur (annonce des résultats)
 
     # ---------- abonnements (succès, score, direct…) ----------
 
@@ -59,6 +60,8 @@ class RunManager:
         self, team: Team, mode: RunMode, level: int | None = None, seed: int | None = None
     ) -> RunInfo:
         """Vérifie les règles et réserve la place. Lève RunRejected si refusé."""
+        if not self.accept_runs:
+            raise RunRejected("Le jeu est figé par l'organisation, patience !")
         slot = (team.id, mode)
         now = time.monotonic()
         elapsed = now - self._last_start.get(slot, -1e9)
@@ -103,6 +106,18 @@ class RunManager:
         else:
             self._release(active.info)
         return True
+
+    def stop_all(self, status: RunStatus = RunStatus.STOPPED) -> int:
+        run_ids = list(self._active)
+        for run_id in run_ids:
+            self.stop(run_id, status)
+        return len(run_ids)
+
+    def reset_progress(self) -> None:
+        """Oublie les niveaux débloqués et l'historique (remise à zéro de l'événement)."""
+        self._unlocked.clear()
+        self._history.clear()
+        self._last_start.clear()
 
     # ---------- consultation ----------
 

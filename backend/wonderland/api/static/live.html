@@ -65,6 +65,7 @@ function handle(msg) {
   else if (msg.type === "run_end") { setTimeout(() => { delete frames[msg.run.id]; render(); }, 4000);
     feed(`${msg.team} : fin de partie (${msg.run.status}, ${msg.run.score} pts)`); }
   else if (msg.type === "highlight") feed(msg.text);
+  else if (msg.type === "announcement") feed("📣 " + msg.text);
   else if (msg.type === "leaderboard") board(msg.rows);
   render();
 }

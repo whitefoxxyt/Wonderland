@@ -40,7 +40,7 @@ def test_messages_order():
     types = bot.types()
     assert types[:3] == ["hello", "level_start", "observation"]
     assert types[-2:] == ["level_end", "run_end"]
-    assert bot.sent[1]["seed"] is not None  # graine communiquée en entraînement
+    assert bot.sent[1]["seed"] == 1  # en entraînement, la graine demandée est celle du niveau
 
 
 def test_campaign_plays_all_levels():

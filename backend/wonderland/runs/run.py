@@ -73,7 +73,8 @@ class Run:
             )
             rng = random.Random(info.seed)
             for level in info.levels:
-                level_seed = rng.randrange(2**31)
+                # Entraînement : la graine choisie par l'équipe EST celle du niveau (rejouable).
+                level_seed = info.seed if info.mode is RunMode.PRACTICE else rng.randrange(2**31)
                 if not await self._play_level(level, level_seed):
                     break
             else:

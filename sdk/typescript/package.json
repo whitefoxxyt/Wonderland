@@ -1,0 +1,13 @@
+{
+  "name": "wonderland-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Client TypeScript pour connecter un bot au serveur Wonderland",
+  "scripts": {
+    "bot": "node src/run-node.ts"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}
